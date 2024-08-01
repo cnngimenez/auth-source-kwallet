@@ -46,18 +46,31 @@
   :group 'auth-source-kwallet)
 
 (cl-defun auth-source-kwallet--kwallet-search (&rest spec
-                                                     &key _backend _type host user _port
-                                                     &allow-other-keys)
-  "Searche KWallet for the specified user and host.
-SPEC, BACKEND, TYPE, HOST, USER and PORT are as required by auth-source."
+                                                &key _backend _type host user _port
+                                                folder wallet label
+                                                &allow-other-keys)
+  "Search KWallet for the specified user and host.
+SPEC, BACKEND, TYPE, HOST, USER and PORT are as required by auth-source.
+Other key parameters are FOLDER, WALLET, and LABEL.  These are kwallet specific
+parameters.
+
+If FOLDER is not provided, then `auth-source-kwallet-folder' is used.
+Similarly, if WALLET is nil or not provided, `auth-source-kwallet-wallet' is
+used.
+
+HOST and USER are used to compose the kwallet search query.  If LABEL is
+provided, it is used instead.
+"
   (if (executable-find auth-source-kwallet-executable)
       (let ((got-secret (string-trim
                          (shell-command-to-string
                           (format "%s %s -f %s -r %s"
                                   auth-source-kwallet-executable
-                                  auth-source-kwallet-wallet
-                                  auth-source-kwallet-folder
-                                  (shell-quote-argument (concat user auth-source-kwallet-key-separator host)))))))
+                                  (if wallet wallet auth-source-kwallet-wallet)
+                                  (if folder folder auth-source-kwallet-folder)
+                                  (shell-quote-argument
+                                   (if label label
+                                     (concat user auth-source-kwallet-key-separator host))))))))
         (list (list :user user
                     :secret got-secret)))
     ;; If not executable was found, return nil and show a warning
