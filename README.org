@@ -18,6 +18,46 @@
 
    To enable the auth source, use ~(auth-source-kwallet-enable)~, like in the example above with use-package.
 
+** Using auth-source-search
+After loading the library, enabling it, and configuring, ~auth-source-search~ can be used to query kwallet.
+
+To query the secret of "ada@example.com" using the default wallet and folder:
+
+#+begin_src elisp
+  (auth-source-search :user "ada" :host "example.com" :type 'kwallet)
+#+end_src
+
+To use a different wallet and folder than the default one:
+
+#+begin_src elisp
+  (auth-source-search :user "ada" :host "example.com"
+                      :folder "OtherHosts"
+                      :wallet "kdewallet2"
+                      :type 'kwallet)
+#+end_src
+
+Kwallet stores secrets from different applications, and sometimes they do not use username and hostname to search for it. Use ~:label~ in this cases:
+
+#+begin_src elisp
+  (auth-source-search :label "search-key-name" :type 'kwallet)
+#+end_src
+
+For example, a LUKS disk password can be searched by changing the folder:
+
+#+begin_src elisp
+  (auth-source-search :label "f1bc3d13-7e64-4bcf-8abe-5f155f68e752"
+                      :folder "SolidLuks"
+                      :type 'kwallet)
+#+end_src
+
+Also, Network Managent secrets can be stored on kwallet and retrieved with auth-source:
+
+#+begin_src elisp
+  (auth-source-search :label "{0aeca2dd-549f-4095-9001-96dd52d50813};802-11-wireless-security"
+                      :folder "Network Management"
+                      :type 'kwallet)
+#+end_src
+
 ** Configuration
 
    The following parameters can be customized:
