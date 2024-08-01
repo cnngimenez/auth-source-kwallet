@@ -59,8 +59,7 @@ Similarly, if WALLET is nil or not provided, `auth-source-kwallet-wallet' is
 used.
 
 HOST and USER are used to compose the kwallet search query.  If LABEL is
-provided, it is used instead.
-"
+provided, it is used instead."
   (if (executable-find auth-source-kwallet-executable)
       (let ((got-secret (string-trim
                          (shell-command-to-string
@@ -74,7 +73,8 @@ provided, it is used instead.
         (list (list :user user
                     :secret got-secret)))
     ;; If not executable was found, return nil and show a warning
-    (warn (format "`auth-source-kwallet': Could not find executable '%s' to query KWallet"))))
+    (warn (format "`auth-source-kwallet': Could not find executable '%s' to query KWallet"
+                  auth-source-kwallet-executable))))
 
 (defun auth-source-kwallet--kwallet-backend-parse (entry)
   "Parse the entry to check if this is a kwallet entry.
