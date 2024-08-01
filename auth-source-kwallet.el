@@ -7,7 +7,7 @@
 ;;; Created: 13 Dec 2020
 ;;; URL: https://github.com/vaartis/auth-source-kwallet
 
-;;; Package-Requires: ((emacs "24.4"))
+;;; Package-Requires: ((emacs "27.1"))
 
 ;;; Version: 1.0.0
 
@@ -45,6 +45,37 @@
   :type 'string
   :group 'auth-source-kwallet)
 
+(defun auth-source-kwallet-list (&optional folder wallet)
+  "Return a list of elements stored in kwallet.
+If FOLDER is nil, use `auth-source-kwallet-folder'.  If it is \"\" then return a
+list of folders.
+
+If WALLET is nil, use `auth-source-kwallet-wallet', else use the specified
+wallet."
+  (split-string
+   (shell-command-to-string
+    (format "%s %s -f %s -l"
+            (executable-find auth-source-kwallet-executable)
+            (shell-quote-argument
+             (or wallet auth-source-kwallet-wallet))
+            (shell-quote-argument
+             (or folder auth-source-kwallet-folder))))))
+
+(defun auth-source-kwallet-read (label &optional folder wallet)
+  "Read a secret from kwallet.
+LABEL is the label to search in kwallet.
+FOLDER and WALLET are optional.  If not provided, `auth-source-kwallet-folder'
+and `auth-source-kwallet-wallet' are used respectively."
+  (json-parse-string
+   (shell-command-to-string (format "%s %s -f %s -r %s"
+                                    auth-source-kwallet-executable
+                                    (shell-quote-argument
+                                     (or wallet auth-source-kwallet-wallet))
+                                    (shell-quote-argument
+                                     (or folder auth-source-kwallet-folder))
+                                    (shell-quote-argument label)))
+   :object-type 'alist))
+
 (cl-defun auth-source-kwallet--kwallet-search (&rest spec
                                                 &key _backend _type host user _port
                                                 folder wallet label list
@@ -64,25 +95,14 @@ provided, it is used instead.
 Listing the folders is possible when LIST is t.  In such case, WALLET is the
 only valid keys."
   (if (executable-find auth-source-kwallet-executable)
-      (let ((got-secret (string-trim
-                         (shell-command-to-string
-                          (if list
-                              (format "%s %s -f %s -l"
-                                      auth-source-kwallet-executable
-                                      (shell-quote-argument
-                                       (if wallet wallet auth-source-kwallet-wallet))
-                                      (shell-quote-argument
-                                       (if folder folder auth-source-kwallet-folder)))
-                          (format "%s %s -f %s -r %s"
-                                  auth-source-kwallet-executable
-                                  (shell-quote-argument
-                                   (if wallet wallet auth-source-kwallet-wallet))
-                                  (shell-quote-argument
-                                   (if folder folder auth-source-kwallet-folder))
-                                  (shell-quote-argument
-                                   (if label label
-                                     (concat user auth-source-kwallet-key-separator host)))))))))
-        (list (list :user user
+      (let ((got-secret (if list
+                            (auth-source-kwallet-list folder wallet)
+                          (auth-source-kwallet-read (or label
+                                                        (concat user
+                                                                auth-source-kwallet-key-separator
+                                                                host))
+                                                    folder wallet))))
+        (list (list :user (or user label)
                     :secret got-secret)))
     ;; If not executable was found, return nil and show a warning
     (warn (format "`auth-source-kwallet': Could not find executable '%s' to query KWallet"
