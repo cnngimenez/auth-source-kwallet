@@ -47,7 +47,7 @@
 
 (cl-defun auth-source-kwallet--kwallet-search (&rest spec
                                                 &key _backend _type host user _port
-                                                folder wallet label
+                                                folder wallet label list
                                                 &allow-other-keys)
   "Search KWallet for the specified user and host.
 SPEC, BACKEND, TYPE, HOST, USER and PORT are as required by auth-source.
@@ -59,10 +59,20 @@ Similarly, if WALLET is nil or not provided, `auth-source-kwallet-wallet' is
 used.
 
 HOST and USER are used to compose the kwallet search query.  If LABEL is
-provided, it is used instead."
+provided, it is used instead.
+
+Listing the folders is possible when LIST is t.  In such case, WALLET is the
+only valid keys."
   (if (executable-find auth-source-kwallet-executable)
       (let ((got-secret (string-trim
                          (shell-command-to-string
+                          (if list
+                              (format "%s %s -f %s -l"
+                                      auth-source-kwallet-executable
+                                      (shell-quote-argument
+                                       (if wallet wallet auth-source-kwallet-wallet))
+                                      (shell-quote-argument
+                                       (if folder folder auth-source-kwallet-folder)))
                           (format "%s %s -f %s -r %s"
                                   auth-source-kwallet-executable
                                   (shell-quote-argument
@@ -71,7 +81,7 @@ provided, it is used instead."
                                    (if folder folder auth-source-kwallet-folder))
                                   (shell-quote-argument
                                    (if label label
-                                     (concat user auth-source-kwallet-key-separator host))))))))
+                                     (concat user auth-source-kwallet-key-separator host)))))))))
         (list (list :user user
                     :secret got-secret)))
     ;; If not executable was found, return nil and show a warning

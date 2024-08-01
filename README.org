@@ -27,6 +27,12 @@ To query the secret of "ada@example.com" using the default wallet and folder:
   (auth-source-search :user "ada" :host "example.com" :type 'kwallet)
 #+end_src
 
+Also, user and hostname can be expressed as a label:
+
+#+begin_src elisp
+  (auth-source-search :label "ada@example.com" :type 'kwallet)
+#+end_src
+
 To use a different wallet and folder than the default one:
 
 #+begin_src elisp
@@ -56,6 +62,18 @@ Also, Network Managent secrets can be stored on kwallet and retrieved with auth-
   (auth-source-search :label "{0aeca2dd-549f-4095-9001-96dd52d50813};802-11-wireless-security"
                       :folder "Network Management"
                       :type 'kwallet)
+#+end_src
+
+Listing all folders in a wallet can be done by:
+
+#+begin_src elisp
+  (auth-source-search :list t :folder "" :wallet "kdewallet" :type 'kwallet)
+#+end_src
+
+And to list labels (and/or user and hostnames in a specific folder:
+
+#+begin_src elisp
+  (auth-source-search :list t :folder "SolidLuks" :wallet "kdewallet" :type 'kwallet)
 #+end_src
 
 ** Configuration
