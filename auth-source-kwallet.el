@@ -65,8 +65,10 @@ provided, it is used instead."
                          (shell-command-to-string
                           (format "%s %s -f %s -r %s"
                                   auth-source-kwallet-executable
-                                  (if wallet wallet auth-source-kwallet-wallet)
-                                  (if folder folder auth-source-kwallet-folder)
+                                  (shell-quote-argument
+                                   (if wallet wallet auth-source-kwallet-wallet))
+                                  (shell-quote-argument
+                                   (if folder folder auth-source-kwallet-folder))
                                   (shell-quote-argument
                                    (if label label
                                      (concat user auth-source-kwallet-key-separator host))))))))
