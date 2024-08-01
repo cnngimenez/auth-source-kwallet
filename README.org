@@ -1,4 +1,4 @@
-* kwallet-auth-source
+* auth-source-kwallet
 
   [[https://melpa.org/#/auth-source-kwallet][file:https://melpa.org/packages/auth-source-kwallet-badge.svg]]
   [[https://melpa.org/#/auth-source-kwallet][file:https://stable.melpa.org/packages/auth-source-kwallet-badge.svg]]
@@ -11,24 +11,24 @@
    If you are using [[https://github.com/jwiegley/use-package][use-package]], you may install the package using with the following code:
 
    #+BEGIN_SRC elisp
-     (use-package kwallet-auth-source
+     (use-package auth-source-kwallet
        :config
-       (kwallet-auth-source-enable))
+       (auth-source-kwallet-enable))
    #+END_SRC
 
-   To enable the auth source, use ~(kwallet-auth-source-enable)~, like in the example above with use-package.
+   To enable the auth source, use ~(auth-source-kwallet-enable)~, like in the example above with use-package.
 
 ** Configuration
 
    The following parameters can be customized:
 
-   - ~kwallet-auth-source-wallet~ :: Default value: "Passwords"
+   - ~auth-source-kwallet-wallet~ :: Default value: "Passwords"
 
      The wallet to use.
-   - ~kwallet-auth-source-folder~ :: Default value: "Passwords"
+   - ~auth-source-kwallet-folder~ :: Default value: "Passwords"
 
      The folder to use in the wallet.
-   - ~kwallet-auth-source-key-separator~ :: Default value: "@"
+   - ~auth-source-kwallet-key-separator~ :: Default value: "@"
 
      The value used to separate the name and the host when looking up
      the key key in the wallet.
