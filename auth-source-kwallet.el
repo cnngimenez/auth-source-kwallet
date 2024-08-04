@@ -126,11 +126,13 @@ ENTRY is as required by auth-source."
 (defun auth-source-kwallet-enable ()
   "Enable the kwallet auth source."
 
-  (advice-add 'auth-source-backend-parse
-              :before-until
-              #'auth-source-kwallet--kwallet-backend-parse)
+  ;; (advice-add 'auth-source-backend-parse
+  ;;             :before-until
+  ;;             #'auth-source-kwallet--kwallet-backend-parse)
   (add-to-list 'auth-sources 'kwallet)
   (auth-source-forget-all-cached))
+
+(add-hook 'auth-source-backend-parser-functions #'auth-source-kwallet--kwallet-backend-parse)
 
 (provide 'auth-source-kwallet)
 
