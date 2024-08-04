@@ -66,15 +66,18 @@ wallet."
 LABEL is the label to search in kwallet.
 FOLDER and WALLET are optional.  If not provided, `auth-source-kwallet-folder'
 and `auth-source-kwallet-wallet' are used respectively."
-  (json-parse-string
-   (shell-command-to-string (format "%s %s -f %s -r %s"
-                                    auth-source-kwallet-executable
-                                    (shell-quote-argument
-                                     (or wallet auth-source-kwallet-wallet))
-                                    (shell-quote-argument
-                                     (or folder auth-source-kwallet-folder))
-                                    (shell-quote-argument label)))
-   :object-type 'alist))
+  (let ((str-result (string-trim
+                     (shell-command-to-string (format "%s %s -f %s -r %s"
+                                                      auth-source-kwallet-executable
+                                                      (shell-quote-argument
+                                                       (or wallet auth-source-kwallet-wallet))
+                                                      (shell-quote-argument
+                                                       (or folder auth-source-kwallet-folder))
+                                                      (shell-quote-argument label))))))
+    (condition-case nil
+        (json-parse-string str-result :object-type 'alist)
+      (json-parse-error str-result)
+      (json-trailing-content str-result))))
 
 (cl-defun auth-source-kwallet--kwallet-search (&rest spec
                                                 &key _backend _type host user _port
