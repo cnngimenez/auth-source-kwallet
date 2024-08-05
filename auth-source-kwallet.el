@@ -45,6 +45,12 @@
   :type 'string
   :group 'auth-source-kwallet)
 
+(defun auth-source-kwallet-error-output-p (str)
+  "True if STR is an error string output from KWallet."
+  (or (string-match-p "^The folder .* does not exist!.*" str)
+      (string-match-p "^Failed to read entry .*" str)
+      (string-match-p "^Wallet .* not found$" str)))
+
 (defun auth-source-kwallet-list (&optional folder wallet)
   "Return a list of elements stored in kwallet.
 If FOLDER is nil, use `auth-source-kwallet-folder'.  If it is \"\" then return a
@@ -52,14 +58,18 @@ list of folders.
 
 If WALLET is nil, use `auth-source-kwallet-wallet', else use the specified
 wallet."
-  (split-string
-   (shell-command-to-string
-    (format "%s %s -f %s -l"
-            (executable-find auth-source-kwallet-executable)
-            (shell-quote-argument
-             (or wallet auth-source-kwallet-wallet))
-            (shell-quote-argument
-             (or folder auth-source-kwallet-folder))))))
+  (let ((str-result (string-trim
+                     (shell-command-to-string
+                      (format "%s %s -f %s -l"
+                              (executable-find auth-source-kwallet-executable)
+                              (shell-quote-argument
+                               (or wallet auth-source-kwallet-wallet))
+                              (shell-quote-argument
+                               (or folder auth-source-kwallet-folder)))))))
+    (if (auth-source-kwallet-error-output-p str-result)
+        (progn (warn "`auth-source-kwallet': KWallet returned error: \"%s\"" str-result)
+               nil)
+      (split-string str-result))))
 
 (defun auth-source-kwallet-read (label &optional folder wallet)
   "Read a secret from kwallet.
@@ -74,10 +84,13 @@ and `auth-source-kwallet-wallet' are used respectively."
                                                       (shell-quote-argument
                                                        (or folder auth-source-kwallet-folder))
                                                       (shell-quote-argument label))))))
-    (condition-case nil
-        (json-parse-string str-result :object-type 'alist)
-      (json-parse-error str-result)
-      (json-trailing-content str-result))))
+    (if (auth-source-kwallet-error-output-p str-result)
+        (progn (warn "`auth-source-kwallet': KWallet returned error: \"%s\"" str-result)
+               nil)      
+      (condition-case nil
+          (json-parse-string str-result :object-type 'alist)
+        (json-parse-error str-result)
+        (json-trailing-content str-result)))))
 
 (cl-defun auth-source-kwallet--kwallet-search (&rest spec
                                                 &key _backend _type host user _port
