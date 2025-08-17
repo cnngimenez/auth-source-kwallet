@@ -9,7 +9,7 @@
 
 ;;; Package-Requires: ((emacs "27.1"))
 
-;;; Version: 1.0.0
+;;; Version: 0.0.2
 
 ;;; Commentary:
 ;; This package adds kwallet support to auth-source by calling
@@ -46,10 +46,67 @@
   :group 'auth-source-kwallet)
 
 (defun auth-source-kwallet-error-output-p (str)
-  "True if STR is an error string output from KWallet."
-  (or (string-match-p "^The folder .* does not exist!.*" str)
-      (string-match-p "^Failed to read entry .*" str)
-      (string-match-p "^Wallet .* not found$" str)))
+  "True if STR is an error output from KWallet.
+STR can be a list (EXIT-STATUS OUTPUT) or an output error string."
+  (or (and (listp str) (not (zerop (car str))))
+      (and (stringp str) (or
+                          (string-match-p "^The folder .* does not exist!.*" str)
+                          (string-match-p "^Failed to read entry .*" str)
+                          (string-match-p "^Wallet .* not found$" str)))))
+
+(defun auth-source-kwallet-call-subprocess (&optional user host label list folder wallet)
+  "Call kwallet-query executable.
+
+Call kwallet-query executable and return a list such as (EXIT-STATUS OUTPUT),
+with the program exit status and its answer unprocessed respectivelly.  Beware
+that when kwallet-query returns a non-zero exit status (an error ocurred), its
+output may contain an error message.
+
+If USER and HOST are provided, use it to search for the query.  See
+`auth-source-kwallet-key-separator' to modify the user-host separator.  If LABEL
+is provided, it takes precedence and is searchead literaly without modification.
+Label searching is useful for LUKS devices or other non host, FTP, or Web-sites
+ user@host passwords.
+
+If LIST is t, it sends the list parameter to the program.  In this case, USER,
+HOST, and LABEL arguments are ignored.
+
+The WALLET argument is used if not nil.  Else, `auth-source-kwallet-wallet' is
+used instead by default.
+
+The FOLDER argument is used if provided.  Else, `auth-source-kwallet-folder' is
+used by default.
+
+Examples:
+- List entries in \"My Folder\" folder:
+\\=(auth-source-kwallet-call-subprocess nil nil nil t nil \"My Folder\")
+
+- Get the entry with label \"6c4c880d-98aa-452a-a1a3-13e73f044d3a\" (a disk
+  UUID partition) at \"SolidLuks\" folder:
+\\=(auth-source-kwallet-call-subprocess nil nil
+\"6c4c880d-98aa-452a-a1a3-13e73f044d3a\" nil nil \"SolidLuks\")
+
+This function warns if the executable is not found, and returns nil."
+  (if (executable-find auth-source-kwallet-executable)
+      (let ((output-buffer (generate-new-buffer "*kwallet-output*")))
+        (unwind-protect
+            (let ((exit-status (call-process auth-source-kwallet-executable
+                                             nil output-buffer nil
+                                             (or wallet auth-source-kwallet-wallet)
+                                             "-f" (or folder auth-source-kwallet-folder)
+                                             (if list "-l" "-r")
+                                             ;; There's no way to remove an argument (except using macros) when using "-l".
+                                             ;; The only way is by repeating the same argument ("-l").
+                                             (if list "-l"
+                                               (or label
+                                                   (concat user auth-source-kwallet-key-separator host))))))
+              (list exit-status
+                    (with-current-buffer output-buffer
+                      (string-trim (buffer-string)))))
+              (kill-buffer output-buffer)))
+    ;; else, if not executable was found, return nil and show a warning
+    (warn (format "`auth-source-kwallet': Could not find executable '%s' to query KWallet"
+                  auth-source-kwallet-executable))))
 
 (defun auth-source-kwallet-list (&optional folder wallet)
   "Return a list of elements stored in kwallet.
@@ -58,39 +115,28 @@ list of folders.
 
 If WALLET is nil, use `auth-source-kwallet-wallet', else use the specified
 wallet."
-  (let ((str-result (string-trim
-                     (shell-command-to-string
-                      (format "%s %s -f %s -l"
-                              (executable-find auth-source-kwallet-executable)
-                              (shell-quote-argument
-                               (or wallet auth-source-kwallet-wallet))
-                              (shell-quote-argument
-                               (or folder auth-source-kwallet-folder)))))))
+  (let ((str-result (auth-source-kwallet-call-subprocess nil nil nil t folder wallet)))
     (if (auth-source-kwallet-error-output-p str-result)
-        (progn (warn "`auth-source-kwallet': KWallet returned error: \"%s\"" str-result)
-               nil)
-      (split-string str-result))))
+        (progn ;; An error ocurred, report it.
+          (warn "`auth-source-kwallet': KWallet-query program returned with status error %s and output \"%s\"."
+                (car str-result) (cadr str-result))
+          nil)
+      (split-string (cadr str-result)))))
 
 (defun auth-source-kwallet-read (label &optional folder wallet)
   "Read a secret from kwallet.
 LABEL is the label to search in kwallet.
 FOLDER and WALLET are optional.  If not provided, `auth-source-kwallet-folder'
 and `auth-source-kwallet-wallet' are used respectively."
-  (let ((str-result (string-trim
-                     (shell-command-to-string (format "%s %s -f %s -r %s"
-                                                      auth-source-kwallet-executable
-                                                      (shell-quote-argument
-                                                       (or wallet auth-source-kwallet-wallet))
-                                                      (shell-quote-argument
-                                                       (or folder auth-source-kwallet-folder))
-                                                      (shell-quote-argument label))))))
+  (let ((str-result (auth-source-kwallet-call-subprocess nil nil label nil folder wallet)))
     (if (auth-source-kwallet-error-output-p str-result)
-        (progn (warn "`auth-source-kwallet': KWallet returned error: \"%s\"" str-result)
-               nil)      
+        (progn (warn "`auth-source-kwallet': KWallet-query program returned with status error %s and output \"%s\"."
+                     (car str-result) (cadr str-result))
+               nil)
       (condition-case nil
-          (json-parse-string str-result :object-type 'alist)
-        (json-parse-error str-result)
-        (json-trailing-content str-result)))))
+          (json-parse-string (cadr str-result) :object-type 'alist)
+        (json-parse-error (cadr str-result))
+        (json-trailing-content (cadr str-result))))))
 
 (cl-defun auth-source-kwallet--kwallet-search (&rest spec
                                                 &key _backend _type host user _port
@@ -110,19 +156,15 @@ provided, it is used instead.
 
 Listing the folders is possible when LIST is t.  In such case, WALLET is the
 only valid keys."
-  (if (executable-find auth-source-kwallet-executable)
-      (let ((got-secret (if list
-                            (auth-source-kwallet-list folder wallet)
-                          (auth-source-kwallet-read (or label
-                                                        (concat user
-                                                                auth-source-kwallet-key-separator
-                                                                host))
-                                                    folder wallet))))
-        (list (list :user (or user label)
-                    :secret got-secret)))
-    ;; If not executable was found, return nil and show a warning
-    (warn (format "`auth-source-kwallet': Could not find executable '%s' to query KWallet"
-                  auth-source-kwallet-executable))))
+  (let ((got-secret (if list
+                        (auth-source-kwallet-list folder wallet)
+                      (auth-source-kwallet-read (or label
+                                                    (concat user
+                                                            auth-source-kwallet-key-separator
+                                                            host))
+                                                folder wallet))))
+    (list (list :user (or user label)
+                :secret got-secret))))
 
 (defun auth-source-kwallet--kwallet-backend-parse (entry)
   "Parse the entry to check if this is a kwallet entry.
