@@ -184,10 +184,14 @@ ENTRY is as required by auth-source."
   ;; (advice-add 'auth-source-backend-parse
   ;;             :before-until
   ;;             #'auth-source-kwallet--kwallet-backend-parse)
+  ;;
+  ;; In auth-source.el, their authors add a new parser by using the
+  ;; `auth-source-backend-parser-functions' hook, instead of advising the
+  ;; `auth-source-backend-parse'.  Just to be sure, we do the same as them :).
+  
+  (add-hook 'auth-source-backend-parser-functions #'auth-source-kwallet--kwallet-backend-parse)
   (add-to-list 'auth-sources 'kwallet)
   (auth-source-forget-all-cached))
-
-(add-hook 'auth-source-backend-parser-functions #'auth-source-kwallet--kwallet-backend-parse)
 
 (provide 'auth-source-kwallet)
 
